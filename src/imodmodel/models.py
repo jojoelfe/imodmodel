@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple, Union
 from enum import IntFlag, auto
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator, create_model, Field
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator, create_model, Field, computed_field
 
 
 class ID(BaseModel):
@@ -327,6 +327,22 @@ class Object(BaseModel):
     extra: List[GeneralStorage] = []
     imat: Optional[IMAT] = None
     cview: Optional[int] = None
+    color: Optional[Tuple[float,float,float]] = (1.0,0.0,0.0)
+
+    model_config = ConfigDict(validate_assignment=True)
+    
+    @model_validator(mode='after')
+    def update_sizes(self):
+        self.header.contsize = len(self.contours)
+        self.header.meshsize = len(self.meshes)
+        return(self)
+    
+    @model_validator(mode='after')
+    def update_color(self):
+        self.header.red = self.color[0]
+        self.header.green = self.color[1]
+        self.header.blue = self.color[2]
+        return(self)
 
     model_config = ConfigDict(validate_assignment=True)
 
@@ -386,7 +402,6 @@ class ImodModel(BaseModel):
     def update_sizes(self):
         self.header.objsize = len(self.objects)
         return(self)
-    
     @classmethod
     def from_file(cls, filename: os.PathLike):
         """Read an IMOD model from disk."""
