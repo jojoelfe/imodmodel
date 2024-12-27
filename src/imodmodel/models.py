@@ -3,7 +3,7 @@ import warnings
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator, computed_field
 
 
 class ID(BaseModel):
@@ -61,7 +61,7 @@ class ObjectHeader(BaseModel):
     """https://bio3d.colorado.edu/imod/doc/binspec.html"""
     name: str = ''
     extra_data: List[int] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    contsize: int = 1
+    contsize: int = 0
     flags: int = 402653704
     axis: int = 0
     drawmode: int = 1
@@ -89,19 +89,25 @@ class ObjectHeader(BaseModel):
 
 class ContourHeader(BaseModel):
     """https://bio3d.colorado.edu/imod/doc/binspec.html"""
-    psize: int
-    flags: int
-    time: int
-    surf: int
+    psize: int = 0
+    flags: int = 16
+    time: int = 0
+    surf: int = 0
 
 
 class Contour(BaseModel):
     """https://bio3d.colorado.edu/imod/doc/binspec.html"""
-    header: ContourHeader
+    header: ContourHeader = ContourHeader()
     points: np.ndarray  # pt
     extra: List[GeneralStorage] = []
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True,
+                              validate_assignment=True)
+        
+    @model_validator(mode='after')
+    def update_sizes(self):
+        self.header.psize = len(self.points)
+        return(self)
 
 
 class MeshHeader(BaseModel):
@@ -241,10 +247,27 @@ class SLAN(BaseModel):
 class Object(BaseModel):
     """https://bio3d.colorado.edu/imod/doc/binspec.html"""
     header: ObjectHeader = ObjectHeader()
-    contours: List[Contour] = []
-    meshes: List[Mesh] = []
+    contours: Tuple[Contour,...] = ()
+    meshes: Tuple[Mesh,...] = ()
     extra: List[GeneralStorage] = []
     imat: Optional[IMAT] = None
+    cview: Optional[int] = None
+    color: Optional[Tuple[float,float,float]] = (1.0,0.0,0.0)
+
+    model_config = ConfigDict(validate_assignment=True)
+    
+    @model_validator(mode='after')
+    def update_sizes(self):
+        self.header.contsize = len(self.contours)
+        self.header.meshsize = len(self.meshes)
+        return(self)
+    
+    @model_validator(mode='after')
+    def update_color(self):
+        self.header.red = self.color[0]
+        self.header.green = self.color[1]
+        self.header.blue = self.color[2]
+        return(self)
 
 
 class ImodModel(BaseModel):
@@ -254,10 +277,17 @@ class ImodModel(BaseModel):
     """
     id: ID = ID(IMOD_file_id='IMOD', version_id='V1.2')
     header: ModelHeader = ModelHeader()
-    objects: List[Object] = []
+    objects: Tuple[Object,...] = []
     slicer_angles: List[SLAN] = []
     minx: Optional[MINX] = None
     extra: List[GeneralStorage] = []
+
+    model_config = ConfigDict(validate_assignment=True)
+    
+    @model_validator(mode='after')
+    def update_sizes(self):
+        self.header.objsize = len(self.objects)
+        return(self)
 
     @classmethod
     def from_file(cls, filename: os.PathLike):
@@ -269,6 +299,5 @@ class ImodModel(BaseModel):
     def to_file(self, filename: os.PathLike):
         """Write an IMOD model to disk."""
         from .writers import write_model
-        self.header.objsize = len(self.objects)
         with open(filename, 'wb') as file:
             write_model(file, self)
