@@ -1,9 +1,10 @@
 import os
 import warnings
 from typing import List, Optional, Tuple, Union
+from enum import IntFlag, auto
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator, computed_field
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator, create_model, Field
 
 
 class ID(BaseModel):
@@ -20,6 +21,30 @@ class GeneralStorage(BaseModel):
     value: Union[float, int, Tuple[int, int], Tuple[int, int, int, int]]
 
 
+class ModelFlags(IntFlag):
+    flag0: bool = auto() #0
+    flag1: bool = auto() #1
+    flag2: bool = auto() #2
+    flag3: bool = auto() #3
+    flag4: bool = auto() #4
+    flag5: bool = auto() #5
+    flag6: bool = auto() #6
+    flag7: bool = auto() #7
+    flag8: bool = auto() #8
+    mesh_thickness_possible: bool = auto() #9
+    z_coordinates_start_from_negative_half: bool = auto() #10
+    model_has_not_been_written: bool = auto() #11
+    multiple_clip_planes_possible: bool = auto() #12
+    mat1_and_mat3_are_bytes: bool = auto() #13
+    otrans_has_image_origin_values: bool = auto() #14
+    current_tilt_angles_are_stored_correctly: bool = auto() #15
+    model_last_viewed_onYZ_flipped_or_rotated: bool = auto() #16
+    model_rotx: bool = auto() #17
+
+
+# Create pydantic model bas on the ModelFlags Flag enum
+ModelFlagsModel = create_model("ModelFlagsModel", **{flag.name: (bool, Field(default=False)) for flag in ModelFlags})
+    
 class ModelHeader(BaseModel):
     """https://bio3d.colorado.edu/imod/doc/binspec.html"""
     name: str = 'IMOD-NewModel'
@@ -27,7 +52,7 @@ class ModelHeader(BaseModel):
     ymax: int = 0
     zmax: int = 0
     objsize: int = 0
-    flags: int = 402653704
+    flags: ModelFlags = ModelFlags(0)
     drawmode: int = 1
     mousemode: int = 2
     blacklevel: int = 0
@@ -56,13 +81,47 @@ class ModelHeader(BaseModel):
         end = value.find(b'\x00')
         return value[:end].decode('utf-8')
 
+class ObjectFlags(IntFlag):
+    flag0: bool = auto()
+    turn_off_display: bool = auto()
+    draw_using_depth_cue: bool = auto()
+    open: bool = auto()                                   # 3 /* Object contains Open/Closed contours */
+    wild: bool = auto()                                   # 4 /* No constraints on contour data       */
+    inside_out: bool = auto()
+    use_fill_for_spheres: bool = auto()
+    draw_spheres_central_section_only: bool = auto()
+    fill: bool = auto()
+    scattered: bool = auto()
+    mesh: bool = auto()                                   # 10 /* Draw mesh in 3D, imod view        */
+    noline: bool = auto()                                 # 11 
+    use_value: bool = auto()                              # 12 
+    planar: bool = auto()                                 # 13 
+    fcolor: bool = auto()                                 # 14 
+    anti_alias: bool = auto()                             # 15 
+    scalar: bool = auto()                                 # 16 
+    mcolor: bool = auto()                                 # 17 
+    time: bool = auto()                                   # 18 
+    two_side: bool = auto()                               # 19 
+    thick_cont: bool = auto()                             # 20 
+    extra_modv: bool = auto()                             # 21 
+    extra_edit: bool = auto()                             # 22 
+    pnt_nomodv: bool = auto()                             # 23 
+    modv_only: bool = auto()                              # 24 
+    flag25: bool = auto()                                 # 25 
+    poly_cont: bool = auto()                              # 26 
+    draw_label: bool = auto()                             # 27 
+    scale_wdth: bool = auto()                             # 28 
+
+
+ObjectFlagsModel = create_model("ObjectFlagsModel", **{flag.name: (bool, Field(default=False)) for flag in ObjectFlags})
+
 
 class ObjectHeader(BaseModel):
     """https://bio3d.colorado.edu/imod/doc/binspec.html"""
     name: str = ''
     extra_data: List[int] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     contsize: int = 0
-    flags: int = 402653704
+    flags: ObjectFlags = ObjectFlags(0)
     axis: int = 0
     drawmode: int = 1
     red: float = 0.0
@@ -86,11 +145,37 @@ class ObjectHeader(BaseModel):
         end = value.find(b'\x00')
         return value[:end].decode('utf-8')
 
+class ContourFlags(IntFlag):
+    flag0: bool = auto()
+    flag1: bool = auto()
+    flag2: bool = auto()
+    open: bool = auto()
+    wild: bool = auto()
+    strippled: bool = auto()
+    cursor_like: bool = auto()
+    draw_allz: bool = auto()
+    mmodel_only: bool = auto()
+    noconnect: bool = auto()
+    flag10: bool = auto()
+    flag11: bool = auto()
+    flag12: bool = auto()
+    flag13: bool = auto()
+    flag14: bool = auto()
+    flag15: bool = auto()
+    flag16: bool = auto()
+    scanline: bool = auto()
+    connect_top: bool = auto()
+    connect_bottom: bool = auto()
+    connect_invert: bool = auto()
+    
+
+ContourFlagsModel = create_model("ContourFlagsModel", **{flag.name: (bool, Field(default=False)) for flag in ContourFlags})
+
 
 class ContourHeader(BaseModel):
     """https://bio3d.colorado.edu/imod/doc/binspec.html"""
     psize: int = 0
-    flags: int = 16
+    flags: ContourFlags = ContourFlags(0)
     time: int = 0
     surf: int = 0
 
@@ -252,9 +337,18 @@ class Object(BaseModel):
     extra: List[GeneralStorage] = []
     imat: Optional[IMAT] = None
     cview: Optional[int] = None
-    color: Optional[Tuple[float,float,float]] = (1.0,0.0,0.0)
 
     model_config = ConfigDict(validate_assignment=True)
+
+    def __init__(self, 
+                 color: Optional[Tuple[float, float, float]] = None, 
+                 flags: Optional[ObjectFlagsModel] = None,
+                 **data):
+        super().__init__(**data)
+        if color is not None:
+            self.color = color
+        if flags is not None:
+            self.flags = flags
     
     @model_validator(mode='after')
     def update_sizes(self):
@@ -262,13 +356,25 @@ class Object(BaseModel):
         self.header.meshsize = len(self.meshes)
         return(self)
     
-    @model_validator(mode='after')
-    def update_color(self):
-        self.header.red = self.color[0]
-        self.header.green = self.color[1]
-        self.header.blue = self.color[2]
-        return(self)
+    @property
+    def color(self):
+        return (self.header.red, self.header.green, self.header.blue)
 
+    @color.setter
+    def color(self, value: Tuple[float, float, float]):
+        self.header.red, self.header.green, self.header.blue = value
+
+    @property
+    def flags(self) -> ObjectFlagsModel:
+        return ObjectFlagsModel(**{flag.name: True for flag in self.header.flags})
+    
+    @flags.setter
+    def flags(self, model: ObjectFlagsModel):
+        for name, value in model:
+            if value:
+                self.header.flags |= ObjectFlags[name]
+            else:
+                self.header.flags &= ~ObjectFlags[name]
 
 class ImodModel(BaseModel):
     """Contents of an IMOD model file.
@@ -281,14 +387,16 @@ class ImodModel(BaseModel):
     slicer_angles: List[SLAN] = []
     minx: Optional[MINX] = None
     extra: List[GeneralStorage] = []
+    flags: ModelFlagsModel = ModelFlagsModel()
 
-    model_config = ConfigDict(validate_assignment=True)
+    model_config = ConfigDict(validate_assignment=True,
+                              arbitrary_types_allowed=True)
     
     @model_validator(mode='after')
     def update_sizes(self):
         self.header.objsize = len(self.objects)
         return(self)
-
+    
     @classmethod
     def from_file(cls, filename: os.PathLike):
         """Read an IMOD model from disk."""

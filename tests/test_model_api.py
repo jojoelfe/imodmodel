@@ -90,3 +90,8 @@ def test_read_write_read_roundtrip(two_contour_model_file, tmp_path):
     assert np.allclose(model.objects[0].contours[0].points, model2.objects[0].contours[0].points)
     assert model.objects[0].contours[1].header == model2.objects[0].contours[1].header
     assert np.allclose(model.objects[0].contours[1].points, model2.objects[0].contours[1].points)
+
+def test_color_syntactic_sugar(two_contour_model_file):
+    """Check that the color property of the model object is a tuple."""
+    model = ImodModel.from_file(two_contour_model_file)
+    assert model.objects[0].color == (0.0, 1,0, 0.0)

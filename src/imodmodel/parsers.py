@@ -174,9 +174,9 @@ def parse_model(file: BinaryIO) -> ImodModel:
         elif control_sequence == "IMAT":
             objects[-1].imat = _parse_imat(file)
         elif control_sequence == "CONT":
-            objects[-1].contours.append(_parse_contour(file))
+            objects[-1].contours = (*objects[-1].contours,_parse_contour(file))
         elif control_sequence == "MESH":
-            objects[-1].meshes.append(_parse_mesh(file))
+            objects[-1].meshes = (*objects[-1].meshes, _parse_mesh(file))
         elif control_sequence == "MOST":
             extra += _parse_general_storage(file)
         elif control_sequence == "OBST":
