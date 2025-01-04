@@ -75,6 +75,41 @@ class ModelHeader(BaseModel):
     beta: float = 0.0
     gamma: float = 0.0
 
+class ObjectFlags(IntFlag):
+    flag0: bool = auto()
+    turn_off_display: bool = auto()
+    draw_using_depth_cue: bool = auto()
+    open: bool = auto()                                   # 3 /* Object contains Open/Closed contours */
+    wild: bool = auto()                                   # 4 /* No constraints on contour data       */
+    inside_out: bool = auto()
+    use_fill_for_spheres: bool = auto()
+    draw_spheres_central_section_only: bool = auto()
+    fill: bool = auto()
+    scattered: bool = auto()
+    mesh: bool = auto()                                   # 10 /* Draw mesh in 3D, imod view        */
+    noline: bool = auto()                                 # 11 
+    use_value: bool = auto()                              # 12 
+    planar: bool = auto()                                 # 13 
+    fcolor: bool = auto()                                 # 14 
+    anti_alias: bool = auto()                             # 15 
+    scalar: bool = auto()                                 # 16 
+    mcolor: bool = auto()                                 # 17 
+    time: bool = auto()                                   # 18 
+    two_side: bool = auto()                               # 19 
+    thick_cont: bool = auto()                             # 20 
+    extra_modv: bool = auto()                             # 21 
+    extra_edit: bool = auto()                             # 22 
+    pnt_nomodv: bool = auto()                             # 23 
+    modv_only: bool = auto()                              # 24 
+    flag25: bool = auto()                                 # 25 
+    poly_cont: bool = auto()                              # 26 
+    draw_label: bool = auto()                             # 27 
+    scale_wdth: bool = auto()                             # 28 
+
+
+ObjectFlagsModel = create_model("ObjectFlagsModel", **{flag.name: (bool, Field(default=False)) for flag in ObjectFlags})
+
+
 
 class ObjectFlags(IntFlag):
     flag0: bool = auto()
@@ -327,9 +362,18 @@ class Object(BaseModel):
     extra: List[GeneralStorage] = []
     imat: Optional[IMAT] = None
     cview: Optional[int] = None
-    color: Optional[Tuple[float,float,float]] = (1.0,0.0,0.0)
 
     model_config = ConfigDict(validate_assignment=True)
+
+    def __init__(self, 
+                 color: Optional[Tuple[float, float, float]] = None, 
+                 flags: Optional[ObjectFlagsModel] = None,
+                 **data):
+        super().__init__(**data)
+        if color is not None:
+            self.color = color
+        if flags is not None:
+            self.flags = flags
     
     @model_validator(mode='after')
     def update_sizes(self):
@@ -337,12 +381,9 @@ class Object(BaseModel):
         self.header.meshsize = len(self.meshes)
         return(self)
     
-    @model_validator(mode='after')
-    def update_color(self):
-        self.header.red = self.color[0]
-        self.header.green = self.color[1]
-        self.header.blue = self.color[2]
-        return(self)
+    @property
+    def color(self):
+        return (self.header.red, self.header.green, self.header.blue)
 
     model_config = ConfigDict(validate_assignment=True)
 
@@ -402,6 +443,7 @@ class ImodModel(BaseModel):
     def update_sizes(self):
         self.header.objsize = len(self.objects)
         return(self)
+    
     @classmethod
     def from_file(cls, filename: os.PathLike):
         """Read an IMOD model from disk."""

@@ -118,3 +118,9 @@ def test_read_write_read_roundtrip_slicer_angles(slicer_angle_model_file, tmp_pa
     model.to_file(tmp_path / "test_model.imod")
     model2 = ImodModel.from_file(tmp_path / "test_model.imod")
     assert model.slicer_angles[0].label == model2.slicer_angles[0].label
+
+    
+def test_color_syntactic_sugar(two_contour_model_file):
+    """Check that the color property of the model object is a tuple."""
+    model = ImodModel.from_file(two_contour_model_file)
+    assert model.objects[0].color == (0.0, 1,0, 0.0)
