@@ -137,9 +137,11 @@ def _write_object(file: BinaryIO, obj: Object):
 
 
 def write_model(file: BinaryIO, model: ImodModel):
+    model.update_sizes()
     _write_id(file, model.id)
     _write_model_header(file, model.header)
     for obj in model.objects:
+        obj.update_sizes()
         _write_control_sequence(file, "OBJT")
         _write_object(file, obj)
     for slicer_angle in model.slicer_angles:

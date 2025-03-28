@@ -110,7 +110,6 @@ class ObjectFlags(IntFlag):
 ObjectFlagsModel = create_model("ObjectFlagsModel", **{flag.name: (bool, Field(default=False)) for flag in ObjectFlags})
 
 
-
 class ObjectFlags(IntFlag):
     flag0: bool = auto()
     turn_off_display: bool = auto()
@@ -357,8 +356,8 @@ class SLAN(BaseModel):
 class Object(BaseModel):
     """https://bio3d.colorado.edu/imod/doc/binspec.html"""
     header: ObjectHeader = ObjectHeader()
-    contours: Tuple[Contour,...] = ()
-    meshes: Tuple[Mesh,...] = ()
+    contours: List[Contour] = []
+    meshes: List[Mesh] = []
     extra: List[GeneralStorage] = []
     imat: Optional[IMAT] = None
     cview: Optional[int] = None
@@ -375,38 +374,14 @@ class Object(BaseModel):
         if flags is not None:
             self.flags = flags
     
-    @model_validator(mode='after')
     def update_sizes(self):
         self.header.contsize = len(self.contours)
         self.header.meshsize = len(self.meshes)
-        return(self)
     
     @property
     def color(self):
         return (self.header.red, self.header.green, self.header.blue)
-
-    model_config = ConfigDict(validate_assignment=True)
-
-    def __init__(self, 
-                 color: Optional[Tuple[float, float, float]] = None, 
-                 flags: Optional[ObjectFlagsModel] = None,
-                 **data):
-        super().__init__(**data)
-        if color is not None:
-            self.color = color
-        if flags is not None:
-            self.flags = flags
     
-    @model_validator(mode='after')
-    def update_sizes(self):
-        self.header.contsize = len(self.contours)
-        self.header.meshsize = len(self.meshes)
-        return(self)
-    
-    @property
-    def color(self):
-        return (self.header.red, self.header.green, self.header.blue)
-
     @color.setter
     def color(self, value: Tuple[float, float, float]):
         self.header.red, self.header.green, self.header.blue = value
@@ -430,19 +405,35 @@ class ImodModel(BaseModel):
     """
     id: ID = ID(IMOD_file_id='IMOD', version_id='V1.2')
     header: ModelHeader = ModelHeader()
-    objects: Tuple[Object,...] = []
+    objects: List[Object] = []
     slicer_angles: List[SLAN] = []
     minx: Optional[MINX] = None
     extra: List[GeneralStorage] = []
-    flags: ModelFlagsModel = ModelFlagsModel()
 
     model_config = ConfigDict(validate_assignment=True,
                               arbitrary_types_allowed=True)
     
-    @model_validator(mode='after')
+    def __init__(self, 
+                 flags: Optional[ModelFlagsModel] = None,
+                 **data):
+        super().__init__(**data)
+        if flags is not None:
+            self.flags = flags
+
     def update_sizes(self):
         self.header.objsize = len(self.objects)
-        return(self)
+
+    @property
+    def flags(self) -> ModelFlagsModel:
+        return ModelFlagsModel(**{flag.name: True for flag in self.header.flags})
+    
+    @flags.setter
+    def flags(self, model: ModelFlagsModel):
+        for name, value in model:
+            if value:
+                self.header.flags |= ModelFlags[name]
+            else:
+                self.header.flags &= ~ModelFlags[name]
     
     @classmethod
     def from_file(cls, filename: os.PathLike):
