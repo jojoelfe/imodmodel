@@ -21,108 +21,6 @@ class GeneralStorage(BaseModel):
     value: Union[float, int, Tuple[int, int], Tuple[int, int, int, int]]
 
 
-
-
-
-
-class ObjectFlags(IntFlag):
-    flag0: bool = auto()
-    turn_off_display: bool = auto()
-    draw_using_depth_cue: bool = auto()
-    open: bool = auto()                                   # 3 /* Object contains Open/Closed contours */
-    wild: bool = auto()                                   # 4 /* No constraints on contour data       */
-    inside_out: bool = auto()
-    use_fill_for_spheres: bool = auto()
-    draw_spheres_central_section_only: bool = auto()
-    fill: bool = auto()
-    scattered: bool = auto()
-    mesh: bool = auto()                                   # 10 /* Draw mesh in 3D, imod view        */
-    noline: bool = auto()                                 # 11 
-    use_value: bool = auto()                              # 12 
-    planar: bool = auto()                                 # 13 
-    fcolor: bool = auto()                                 # 14 
-    anti_alias: bool = auto()                             # 15 
-    scalar: bool = auto()                                 # 16 
-    mcolor: bool = auto()                                 # 17 
-    time: bool = auto()                                   # 18 
-    two_side: bool = auto()                               # 19 
-    thick_cont: bool = auto()                             # 20 
-    extra_modv: bool = auto()                             # 21 
-    extra_edit: bool = auto()                             # 22 
-    pnt_nomodv: bool = auto()                             # 23 
-    modv_only: bool = auto()                              # 24 
-    flag25: bool = auto()                                 # 25 
-    poly_cont: bool = auto()                              # 26 
-    draw_label: bool = auto()                             # 27 
-    scale_wdth: bool = auto()                             # 28 
-
-
-
-
-class ObjectFlags(IntFlag):
-    flag0: bool = auto()
-    turn_off_display: bool = auto()
-    draw_using_depth_cue: bool = auto()
-    open: bool = auto()                                   # 3 /* Object contains Open/Closed contours */
-    wild: bool = auto()                                   # 4 /* No constraints on contour data       */
-    inside_out: bool = auto()
-    use_fill_for_spheres: bool = auto()
-    draw_spheres_central_section_only: bool = auto()
-    fill: bool = auto()
-    scattered: bool = auto()
-    mesh: bool = auto()                                   # 10 /* Draw mesh in 3D, imod view        */
-    noline: bool = auto()                                 # 11 
-    use_value: bool = auto()                              # 12 
-    planar: bool = auto()                                 # 13 
-    fcolor: bool = auto()                                 # 14 
-    anti_alias: bool = auto()                             # 15 
-    scalar: bool = auto()                                 # 16 
-    mcolor: bool = auto()                                 # 17 
-    time: bool = auto()                                   # 18 
-    two_side: bool = auto()                               # 19 
-    thick_cont: bool = auto()                             # 20 
-    extra_modv: bool = auto()                             # 21 
-    extra_edit: bool = auto()                             # 22 
-    pnt_nomodv: bool = auto()                             # 23 
-    modv_only: bool = auto()                              # 24 
-    flag25: bool = auto()                                 # 25 
-    poly_cont: bool = auto()                              # 26 
-    draw_label: bool = auto()                             # 27 
-    scale_wdth: bool = auto()                             # 28 
-
-
-ObjectFlagsModel = create_model("ObjectFlagsModel", **{flag.name: (bool, Field(default=False)) for flag in ObjectFlags})
-
-
-class ObjectHeader(BaseModel):
-    """https://bio3d.colorado.edu/imod/doc/binspec.html"""
-    name: str = ''
-    extra_data: List[int] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    contsize: int = 0
-    flags: ObjectFlags = ObjectFlags(0)
-    axis: int = 0
-    drawmode: int = 1
-    red: float = 0.0
-    green: float = 1.0
-    blue: float = 0.0
-    pdrawsize: int = 2
-    symbol: int = 1
-    symsize: int = 3
-    linewidth2: int = 1
-    linewidth: int = 1
-    linesty: int = 0
-    symflags: int = 0
-    sympad: int = 0
-    trans: int = 0
-    meshsize: int = 0
-    surfsize: int = 0
-
-    @field_validator('name', mode="before")
-    @classmethod
-    def decode_null_terminated_byte_string(cls, value: bytes):
-        end = value.find(b'\x00')
-        return value[:end].decode('utf-8')
-
 class ContourFlags(IntFlag):
     flag0: bool = auto()
     flag1: bool = auto()
@@ -302,70 +200,7 @@ class SLAN(BaseModel):
     label: str
 
 
-class Object(BaseModel):
-    """https://bio3d.colorado.edu/imod/doc/binspec.html"""
-    header: ObjectHeader = ObjectHeader()
-    contours: List[Contour] = []
-    meshes: List[Mesh] = []
-    extra: List[GeneralStorage] = []
-    imat: Optional[IMAT] = None
-    cview: Optional[int] = None
-
-    model_config = ConfigDict(validate_assignment=True)
-
-    def __init__(self, 
-                 color: Optional[Tuple[float, float, float]] = None, 
-                 flags: Optional[ObjectFlagsModel] = None,
-                 **data):
-        super().__init__(**data)
-        if color is not None:
-            self.color = color
-        if flags is not None:
-            self.flags = flags
-    
-    def update_sizes(self):
-        self.header.contsize = len(self.contours)
-        self.header.meshsize = len(self.meshes)
-    
-    @property
-    def color(self):
-        return (self.header.red, self.header.green, self.header.blue)
-    
-    @color.setter
-    def color(self, value: Tuple[float, float, float]):
-        self.header.red, self.header.green, self.header.blue = value
-
-    @property
-    def flags(self) -> ObjectFlagsModel:
-        return ObjectFlagsModel(**{flag.name: True for flag in self.header.flags})
-    
-    @flags.setter
-    def flags(self, model: ObjectFlagsModel):
-        for name, value in model:
-            if value:
-                self.header.flags |= ObjectFlags[name]
-            else:
-                self.header.flags &= ~ObjectFlags[name]
-
-class ModelFlags(BaseModel):
-    flag0: bool = False #0
-    flag1: bool = False #1
-    flag2: bool = False #2
-    flag3: bool = False #3
-    flag4: bool = False #4
-    flag5: bool = False #5
-    flag6: bool = False #6
-    flag7: bool = False #7
-    flag8: bool = False #8
-    mesh_thickness_possible: bool = False #9
-    z_coordinates_start_from_negative_half: bool = False #10
-    model_has_not_been_written: bool = False #11
-    multiple_clip_planes_possible: bool = False #12
-    mat1_and_mat3_are_bytes: bool = False #13
-    otrans_has_image_origin_values: bool = False #14
-    current_tilt_angles_are_stored_correctly: bool = False #15
-    model_last_viewed_onYZ_flipped_or_rotated: bool = False #16
-    model_rotx: bool = False #17
+class IntFlagModel(BaseModel):
 
     def __init__(self, int_value: int = 0):
         """Initialize the ModelFlags from an integer value.
@@ -392,6 +227,127 @@ class ModelFlags(BaseModel):
                 return_value |= (1 << i)
         return return_value
 
+class ObjectFlags(IntFlagModel):
+    flag0: bool = False
+    turn_off_display: bool = False
+    draw_using_depth_cue: bool = False
+    open: bool = False                                   # 3 /* Object contains Open/Closed contours */
+    wild: bool = False                                   # 4 /* No constraints on contour data       */
+    inside_out: bool = False
+    use_fill_for_spheres: bool = False
+    draw_spheres_central_section_only: bool = False
+    fill: bool = False
+    scattered: bool = False
+    mesh: bool = False                                   # 10 /* Draw mesh in 3D, imod view        */
+    noline: bool = False                                 # 11 
+    use_value: bool = False                              # 12 
+    planar: bool = False                                 # 13 
+    fcolor: bool = False                                 # 14 
+    anti_alias: bool = False                             # 15 
+    scalar: bool = False                                 # 16 
+    mcolor: bool = False                                 # 17 
+    time: bool = False                                   # 18 
+    two_side: bool = False                               # 19 
+    thick_cont: bool = False                             # 20 
+    extra_modv: bool = False                             # 21 
+    extra_edit: bool = False                             # 22 
+    pnt_nomodv: bool = False                             # 23 
+    modv_only: bool = False                              # 24 
+    flag25: bool = False                                 # 25 
+    poly_cont: bool = False                              # 26 
+    draw_label: bool = False                             # 27 
+    scale_wdth: bool = False                             # 28 
+
+
+class ObjectHeader(BaseModel):
+    """https://bio3d.colorado.edu/imod/doc/binspec.html"""
+    name: str = ''
+    extra_data: List[int] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    contsize: int = 0
+    flags: ObjectFlags = ObjectFlags(0)
+    axis: int = 0
+    drawmode: int = 1
+    red: float = 0.0
+    green: float = 1.0
+    blue: float = 0.0
+    pdrawsize: int = 2
+    symbol: int = 1
+    symsize: int = 3
+    linewidth2: int = 1
+    linewidth: int = 1
+    linesty: int = 0
+    symflags: int = 0
+    sympad: int = 0
+    trans: int = 0
+    meshsize: int = 0
+    surfsize: int = 0
+
+
+    @field_validator('flags', mode="before")
+    @classmethod
+    def set_flags(cls, value: int):
+        """Set the flags based on the provided integer value.
+
+        This will initialize the ModelFlags based on the integer value.
+        """
+        # Create an instance of ModelFlags using the provided integer value
+        flags = ObjectFlags(value)
+        
+        return flags
+
+class Object(BaseModel):
+    """https://bio3d.colorado.edu/imod/doc/binspec.html"""
+    header: ObjectHeader = ObjectHeader()
+    contours: List[Contour] = []
+    meshes: List[Mesh] = []
+    extra: List[GeneralStorage] = []
+    imat: Optional[IMAT] = None
+    cview: Optional[int] = None
+
+    model_config = ConfigDict(validate_assignment=True)
+
+    def __init__(self, 
+                 color: Optional[Tuple[float, float, float]] = None, 
+                 **data):
+        super().__init__(**data)
+        if color is not None:
+            self.color = color
+
+    
+    def update_sizes(self):
+        self.header.contsize = len(self.contours)
+        self.header.meshsize = len(self.meshes)
+    
+    @property
+    def color(self):
+        return (self.header.red, self.header.green, self.header.blue)
+    
+    @color.setter
+    def color(self, value: Tuple[float, float, float]):
+        self.header.red, self.header.green, self.header.blue = value
+
+
+class ModelFlags(IntFlagModel):
+    flag0: bool = False #0
+    flag1: bool = False #1
+    flag2: bool = False #2
+    flag3: bool = False #3
+    flag4: bool = False #4
+    flag5: bool = False #5
+    flag6: bool = False #6
+    flag7: bool = False #7
+    flag8: bool = False #8
+    mesh_thickness_possible: bool = False #9
+    z_coordinates_start_from_negative_half: bool = False #10
+    model_has_not_been_written: bool = False #11
+    multiple_clip_planes_possible: bool = False #12
+    mat1_and_mat3_are_bytes: bool = False #13
+    otrans_has_image_origin_values: bool = False #14
+    current_tilt_angles_are_stored_correctly: bool = False #15
+    model_last_viewed_onYZ_flipped_or_rotated: bool = False #16
+    model_rotx: bool = False #17
+
+    
 class ModelHeader(BaseModel):
     """https://bio3d.colorado.edu/imod/doc/binspec.html"""
     name: str = 'IMOD-NewModel'

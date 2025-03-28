@@ -114,7 +114,9 @@ def test_parse_object_header(two_contour_model_file_handle):
         'symsize': 3,
         'trans': 0
     }
-    assert object_header.dict() == expected
+    result = dict(object_header)
+    result["flags"] = int(result["flags"])
+    assert result == expected
 
 
 @pytest.mark.parametrize(

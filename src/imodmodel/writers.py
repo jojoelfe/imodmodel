@@ -53,7 +53,7 @@ def _write_model_header(file: BinaryIO, header: ModelHeader):
 
 
 def _write_object_header(file: BinaryIO, header: ObjectHeader):
-    _write_to_specification(file, ModFileSpecification.OBJECT_HEADER, header.dict())
+    _write_to_specification(file, ModFileSpecification.OBJECT_HEADER, dict(header))
 
 
 def _write_contour_header(file: BinaryIO, header: ContourHeader):
