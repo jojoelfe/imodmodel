@@ -166,18 +166,18 @@ def test_model_flags(two_contour_model_file,tmp_path):
     model = ImodModel.from_file(two_contour_model_file)
     
     # Check the initial flags
-    assert model.flags.flag0 is False
-    assert model.flags.current_tilt_angles_are_stored_correctly is True
-    assert model.header.flags == 62464
+    assert model.header.flags.flag0 is False
+    assert model.header.flags.current_tilt_angles_are_stored_correctly is True
+    assert int(model.header.flags) == 62464
 
-    model.flags.flag0 = True
-    assert model.header.flags == 62465
-    model.flags.current_tilt_angles_are_stored_correctly = False
-    assert model.header.flags
+    model.header.flags.flag0 = True
+    assert int(model.header.flags) == 62465
+    model.header.flags.current_tilt_angles_are_stored_correctly = False
+    assert int(model.header.flags) == 29697
 
     model.to_file(tmp_path / "test_model_with_flags.imod")
     # Read back the model to check if flags were set correctly
     read_back_model = ImodModel.from_file(tmp_path / "test_model_with_flags.imod")
-    assert read_back_model.flags.flag0 is True
-    assert read_back_model.flags.current_tilt_angles_are_stored_correctly is False
+    assert read_back_model.header.flags.flag0 is True
+    assert read_back_model.header.flags.current_tilt_angles_are_stored_correctly is False
 

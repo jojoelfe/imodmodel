@@ -3,6 +3,7 @@ from struct import Struct
 from typing import BinaryIO, List, Union
 
 import numpy as np
+from pydantic import BaseModel
 
 from .models import (
     ID,
@@ -26,6 +27,8 @@ from .binary_specification import ModFileSpecification
 def _write_to_format_str(file: BinaryIO, format_str: str, data: Union[tuple, list]):
     # Convert data to bytes
     data = [s.encode("utf-8") if isinstance(s, str) else s for s in data]
+    # Convert flag BaseModels to int
+    data = [int(s) if isinstance(s, BaseModel) else s for s in data]
     struct = Struct(format_str)
     file.write(struct.pack(*data))
 
@@ -46,7 +49,7 @@ def _write_id(file: BinaryIO, id: ID):
 
 
 def _write_model_header(file: BinaryIO, header: ModelHeader):
-    _write_to_specification(file, ModFileSpecification.MODEL_HEADER, header.dict())
+    _write_to_specification(file, ModFileSpecification.MODEL_HEADER, dict(header))
 
 
 def _write_object_header(file: BinaryIO, header: ObjectHeader):

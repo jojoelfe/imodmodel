@@ -21,59 +21,9 @@ class GeneralStorage(BaseModel):
     value: Union[float, int, Tuple[int, int], Tuple[int, int, int, int]]
 
 
-class ModelFlags(IntFlag):
-    flag0: bool = auto() #0
-    flag1: bool = auto() #1
-    flag2: bool = auto() #2
-    flag3: bool = auto() #3
-    flag4: bool = auto() #4
-    flag5: bool = auto() #5
-    flag6: bool = auto() #6
-    flag7: bool = auto() #7
-    flag8: bool = auto() #8
-    mesh_thickness_possible: bool = auto() #9
-    z_coordinates_start_from_negative_half: bool = auto() #10
-    model_has_not_been_written: bool = auto() #11
-    multiple_clip_planes_possible: bool = auto() #12
-    mat1_and_mat3_are_bytes: bool = auto() #13
-    otrans_has_image_origin_values: bool = auto() #14
-    current_tilt_angles_are_stored_correctly: bool = auto() #15
-    model_last_viewed_onYZ_flipped_or_rotated: bool = auto() #16
-    model_rotx: bool = auto() #17
 
 
-# Create pydantic model bas on the ModelFlags Flag enum
-ModelFlagsModel = create_model("ModelFlagsModel", **{flag.name: (bool, Field(default=False)) for flag in ModelFlags})
-    
-class ModelHeader(BaseModel):
-    """https://bio3d.colorado.edu/imod/doc/binspec.html"""
-    name: str = 'IMOD-NewModel'
-    xmax: int = 0
-    ymax: int = 0
-    zmax: int = 0
-    objsize: int = 0
-    flags: ModelFlags = ModelFlags(0)
-    drawmode: int = 1
-    mousemode: int = 2
-    blacklevel: int = 0
-    whitelevel: int = 255
-    xoffset: float = 0.0
-    yoffset: float = 0.0
-    zoffset: float = 0.0
-    xscale: float = 1.0
-    yscale: float = 1.0
-    zscale: float = 1.0
-    object: int = 0
-    contour: int = 0
-    point: int = -1
-    res: int = 3
-    thresh: int = 128
-    pixelsize: float = 1.0
-    units: int = 0
-    csum: int = 0
-    alpha: float = 0.0
-    beta: float = 0.0
-    gamma: float = 0.0
+
 
 class ObjectFlags(IntFlag):
     flag0: bool = auto()
@@ -107,7 +57,6 @@ class ObjectFlags(IntFlag):
     scale_wdth: bool = auto()                             # 28 
 
 
-ObjectFlagsModel = create_model("ObjectFlagsModel", **{flag.name: (bool, Field(default=False)) for flag in ObjectFlags})
 
 
 class ObjectFlags(IntFlag):
@@ -398,6 +347,93 @@ class Object(BaseModel):
             else:
                 self.header.flags &= ~ObjectFlags[name]
 
+class ModelFlags(BaseModel):
+    flag0: bool = False #0
+    flag1: bool = False #1
+    flag2: bool = False #2
+    flag3: bool = False #3
+    flag4: bool = False #4
+    flag5: bool = False #5
+    flag6: bool = False #6
+    flag7: bool = False #7
+    flag8: bool = False #8
+    mesh_thickness_possible: bool = False #9
+    z_coordinates_start_from_negative_half: bool = False #10
+    model_has_not_been_written: bool = False #11
+    multiple_clip_planes_possible: bool = False #12
+    mat1_and_mat3_are_bytes: bool = False #13
+    otrans_has_image_origin_values: bool = False #14
+    current_tilt_angles_are_stored_correctly: bool = False #15
+    model_last_viewed_onYZ_flipped_or_rotated: bool = False #16
+    model_rotx: bool = False #17
+
+    def __init__(self, int_value: int = 0):
+        """Initialize the ModelFlags from an integer value.
+
+        This will set the flags based on the provided integer value.
+        """
+        super().__init__()
+        for i, (key, _) in enumerate(self.__dict__.items()):
+            if (int_value & (1 << i)) != 0:
+                # Set the corresponding flag to True
+                setattr(self, key, True)
+            else:
+                # Otherwise, keep it as False
+                setattr(self, key, False)
+
+
+    def __int__(self):
+        """Return the integer value of the flags."""
+        return_value = 0
+        # Iterate over fields in the ModelFlags class
+        for i, (key, value) in enumerate(self.__dict__.items()):
+            if value:
+                # Set the corresponding bit in the integer value
+                return_value |= (1 << i)
+        return return_value
+
+class ModelHeader(BaseModel):
+    """https://bio3d.colorado.edu/imod/doc/binspec.html"""
+    name: str = 'IMOD-NewModel'
+    xmax: int = 0
+    ymax: int = 0
+    zmax: int = 0
+    objsize: int = 0
+    flags: ModelFlags = ModelFlags(0)
+    drawmode: int = 1
+    mousemode: int = 2
+    blacklevel: int = 0
+    whitelevel: int = 255
+    xoffset: float = 0.0
+    yoffset: float = 0.0
+    zoffset: float = 0.0
+    xscale: float = 1.0
+    yscale: float = 1.0
+    zscale: float = 1.0
+    object: int = 0
+    contour: int = 0
+    point: int = -1
+    res: int = 3
+    thresh: int = 128
+    pixelsize: float = 1.0
+    units: int = 0
+    csum: int = 0
+    alpha: float = 0.0
+    beta: float = 0.0
+    gamma: float = 0.0
+
+    @field_validator('flags', mode="before")
+    @classmethod
+    def set_flags(cls, value: int):
+        """Set the flags based on the provided integer value.
+
+        This will initialize the ModelFlags based on the integer value.
+        """
+        # Create an instance of ModelFlags using the provided integer value
+        flags = ModelFlags(value)
+        
+        return flags
+
 class ImodModel(BaseModel):
     """Contents of an IMOD model file.
 
@@ -412,28 +448,9 @@ class ImodModel(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True,
                               arbitrary_types_allowed=True)
-    
-    def __init__(self, 
-                 flags: Optional[ModelFlagsModel] = None,
-                 **data):
-        super().__init__(**data)
-        if flags is not None:
-            self.flags = flags
 
     def update_sizes(self):
         self.header.objsize = len(self.objects)
-
-    @property
-    def flags(self) -> ModelFlagsModel:
-        return ModelFlagsModel(**{flag.name: True for flag in self.header.flags})
-    
-    @flags.setter
-    def flags(self, model: ModelFlagsModel):
-        for name, value in model:
-            if value:
-                self.header.flags |= ModelFlags[name]
-            else:
-                self.header.flags &= ~ModelFlags[name]
     
     @classmethod
     def from_file(cls, filename: os.PathLike):

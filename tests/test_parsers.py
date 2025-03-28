@@ -62,7 +62,9 @@ def test_parse_model_header(two_contour_model_file_handle):
         'zoffset': 0.0,
         'zscale': 1.0
     }
-    assert object_header.dict() == expected
+    result = dict(object_header)
+    result['flags'] = int(result['flags'])
+    assert result == expected
     two_contour_model_file_handle.close()
 
 
