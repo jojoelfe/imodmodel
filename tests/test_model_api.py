@@ -202,3 +202,24 @@ def test_object_flags(two_contour_model_file,tmp_path):
     assert read_back_object.header.flags.draw_label == False
 
 
+def test_contour_flags(two_contour_model_file, tmp_path):
+    """Check the contour flags property."""
+    model = ImodModel.from_file(two_contour_model_file)
+    initial_contour = model.objects[0].contours[0]
+
+    # Check the initial flags
+    assert initial_contour.header.flags.flag0 is False
+    assert int(initial_contour.header.flags) == 0
+
+    # Modify the flags
+    initial_contour.header.flags.flag0 = True
+    assert int(initial_contour.header.flags) == 1
+
+    # Write the model to a file and read it back
+    model.to_file(tmp_path / "test_contour_flags.imod")
+    read_back_model = ImodModel.from_file(tmp_path / "test_contour_flags.imod")
+    read_back_contour = read_back_model.objects[0].contours[0]
+
+    # Verify the flags after reading back
+    assert read_back_contour.header.flags.flag0 is True
+    assert int(read_back_contour.header.flags) == 1

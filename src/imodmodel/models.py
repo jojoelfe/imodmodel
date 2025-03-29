@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple, Union
 from enum import IntFlag, auto
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator, create_model, Field, computed_field
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 
 class ID(BaseModel):
@@ -20,33 +20,54 @@ class GeneralStorage(BaseModel):
     index: Union[float, int, Tuple[int, int], Tuple[int, int, int, int]]
     value: Union[float, int, Tuple[int, int], Tuple[int, int, int, int]]
 
+class IntFlagModel(BaseModel):
 
-class ContourFlags(IntFlag):
-    flag0: bool = auto()
-    flag1: bool = auto()
-    flag2: bool = auto()
-    open: bool = auto()
-    wild: bool = auto()
-    strippled: bool = auto()
-    cursor_like: bool = auto()
-    draw_allz: bool = auto()
-    mmodel_only: bool = auto()
-    noconnect: bool = auto()
-    flag10: bool = auto()
-    flag11: bool = auto()
-    flag12: bool = auto()
-    flag13: bool = auto()
-    flag14: bool = auto()
-    flag15: bool = auto()
-    flag16: bool = auto()
-    scanline: bool = auto()
-    connect_top: bool = auto()
-    connect_bottom: bool = auto()
-    connect_invert: bool = auto()
+    def __init__(self, int_value: int = 0):
+        """Initialize the Flags from an integer value.
+        """
+        super().__init__()
+        for i, (key, _) in enumerate(self.__dict__.items()):
+            if (int_value & (1 << i)) != 0:
+                # Set the corresponding flag to True
+                setattr(self, key, True)
+            else:
+                # Otherwise, keep it as False
+                setattr(self, key, False)
+
+
+    def __int__(self):
+        """Return the integer value of the flags."""
+        return_value = 0
+        # Iterate over fields in the ModelFlags class
+        for i, (key, value) in enumerate(self.__dict__.items()):
+            if value:
+                # Set the corresponding bit in the integer value
+                return_value |= (1 << i)
+        return return_value
+
+class ContourFlags(IntFlagModel):
+    flag0: bool = False
+    flag1: bool = False
+    flag2: bool = False
+    open: bool = False
+    wild: bool = False
+    strippled: bool = False
+    cursor_like: bool = False
+    draw_allz: bool = False
+    model_only: bool = False
+    noconnect: bool = False
+    flag10: bool = False
+    flag11: bool = False
+    flag12: bool = False
+    flag13: bool = False
+    flag14: bool = False
+    flag15: bool = False
+    flag16: bool = False
+    scanline: bool = False
+    connect_top: bool = False
+    connect_bottom: bool = False
+    connect_invert: bool = False
     
-
-ContourFlagsModel = create_model("ContourFlagsModel", **{flag.name: (bool, Field(default=False)) for flag in ContourFlags})
-
 
 class ContourHeader(BaseModel):
     """https://bio3d.colorado.edu/imod/doc/binspec.html"""
@@ -54,6 +75,12 @@ class ContourHeader(BaseModel):
     flags: ContourFlags = ContourFlags(0)
     time: int = 0
     surf: int = 0
+
+    @field_validator('flags', mode="before")
+    @classmethod
+    def set_flags(cls, value: int):
+        flags = ContourFlags(value)
+        return flags
 
 
 class Contour(BaseModel):
@@ -200,33 +227,6 @@ class SLAN(BaseModel):
     label: str
 
 
-class IntFlagModel(BaseModel):
-
-    def __init__(self, int_value: int = 0):
-        """Initialize the ModelFlags from an integer value.
-
-        This will set the flags based on the provided integer value.
-        """
-        super().__init__()
-        for i, (key, _) in enumerate(self.__dict__.items()):
-            if (int_value & (1 << i)) != 0:
-                # Set the corresponding flag to True
-                setattr(self, key, True)
-            else:
-                # Otherwise, keep it as False
-                setattr(self, key, False)
-
-
-    def __int__(self):
-        """Return the integer value of the flags."""
-        return_value = 0
-        # Iterate over fields in the ModelFlags class
-        for i, (key, value) in enumerate(self.__dict__.items()):
-            if value:
-                # Set the corresponding bit in the integer value
-                return_value |= (1 << i)
-        return return_value
-
 class ObjectFlags(IntFlagModel):
     flag0: bool = False
     turn_off_display: bool = False
@@ -286,13 +286,7 @@ class ObjectHeader(BaseModel):
     @field_validator('flags', mode="before")
     @classmethod
     def set_flags(cls, value: int):
-        """Set the flags based on the provided integer value.
-
-        This will initialize the ModelFlags based on the integer value.
-        """
-        # Create an instance of ModelFlags using the provided integer value
-        flags = ObjectFlags(value)
-        
+        flags = ObjectFlags(value)        
         return flags
 
 class Object(BaseModel):
@@ -381,13 +375,7 @@ class ModelHeader(BaseModel):
     @field_validator('flags', mode="before")
     @classmethod
     def set_flags(cls, value: int):
-        """Set the flags based on the provided integer value.
-
-        This will initialize the ModelFlags based on the integer value.
-        """
-        # Create an instance of ModelFlags using the provided integer value
         flags = ModelFlags(value)
-        
         return flags
 
 class ImodModel(BaseModel):

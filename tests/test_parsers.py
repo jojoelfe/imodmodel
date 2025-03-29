@@ -166,7 +166,9 @@ def test_parse_contour(
     """Check that contours are correctly parsed."""
     two_contour_model_file_handle.seek(position)
     contour = _parse_contour(two_contour_model_file_handle)
-    assert contour.dict()['header'] == expected_header
+    header = dict(contour.header)
+    header["flags"] = int(header["flags"])
+    assert header == expected_header
     assert np.allclose(contour.points, expected_points)
     two_contour_model_file_handle.close()
 
