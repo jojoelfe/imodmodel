@@ -22,10 +22,12 @@ class GeneralStorage(BaseModel):
 
 class IntFlagModel(BaseModel):
 
-    def __init__(self, int_value: int = 0):
+    def __init__(self, int_value: int = -1, **kwargs):
         """Initialize the Flags from an integer value.
         """
-        super().__init__()
+        super().__init__(**kwargs)
+        if int_value < 0:
+            return
         for i, (key, _) in enumerate(self.__dict__.items()):
             if (int_value & (1 << i)) != 0:
                 # Set the corresponding flag to True
@@ -78,8 +80,11 @@ class ContourHeader(BaseModel):
 
     @field_validator('flags', mode="before")
     @classmethod
-    def set_flags(cls, value: int):
-        flags = ContourFlags(value)
+    def set_flags(cls, value: Union[int,ContourFlags]):
+        if isinstance(value,int):
+            flags = ContourFlags(value)
+        else:
+            flags = value
         return flags
 
 
@@ -285,8 +290,11 @@ class ObjectHeader(BaseModel):
 
     @field_validator('flags', mode="before")
     @classmethod
-    def set_flags(cls, value: int):
-        flags = ObjectFlags(value)        
+    def set_flags(cls, value: Union[int,ObjectFlags]):
+        if isinstance(value,int):
+            flags = ObjectFlags(value)
+        else:
+            flags = value        
         return flags
 
 class Object(BaseModel):
@@ -374,8 +382,11 @@ class ModelHeader(BaseModel):
 
     @field_validator('flags', mode="before")
     @classmethod
-    def set_flags(cls, value: int):
-        flags = ModelFlags(value)
+    def set_flags(cls, value: Union[int,ModelFlags]):
+        if isinstance(value, int):
+            flags = ModelFlags(value)
+        else:
+            flags = value
         return flags
 
 class ImodModel(BaseModel):
