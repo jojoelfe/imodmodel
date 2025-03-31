@@ -600,8 +600,8 @@
 
 
 <h1 id="object-based-api">Object-based API</h1>
-<p>The resulting dataframe from <code>imodmodel.read()</code> contains only information about the contours or slicer angles. 
-The full set of information from the imod model file can be parsed using <code>ImodModel</code></p>
+<p><code>imodmodel.read()</code> and <code>imodmodel.write()</code> are convenient APIs for accessing information from contours or slicer angles from an IMOD model file. </p>
+<p><code>ImodModel</code> is a <a href="https://docs.pydantic.dev/latest/">pydantic model</a> for the data in a model file. A more complete set of the information in an IMOD model files can be accessed using the <code>ImodModel.from_file()</code> method.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">imodmodel</span><span class="w"> </span><span class="kn">import</span> <span class="n">ImodModel</span>
 
 <span class="n">my_model</span> <span class="o">=</span> <span class="n">ImodModel</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="s2">&quot;my_model_file.mod&quot;</span><span class="p">)</span>
